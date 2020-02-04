@@ -160,14 +160,17 @@ library(cchecks)
 library(tidyverse)
 
 tidy_checks <- function(checks) {
-
+  
   check_res <- map(checks, pluck, "data", "checks")
   check_pkg <- map(checks, pluck, "data", "package")
   check_deets <- map(checks, pluck, "data", "check_details")
+  check_summ <- map(checks, pluck, "data", "summary")
   
   tibble(pkg = unlist(check_pkg),
          check_results = check_res,
-         check_details = check_deets)
+         check_details = check_deets,
+         check_summary = check_summ) %>% 
+    unnest_wider(check_summary)
   
 }
 ```
@@ -184,7 +187,7 @@ clean_checks %>%
   unnest(check_results)
 ```
 
-    ## # A tibble: 26 x 9
+    ## # A tibble: 26 x 15
     ##    pkg   flavor version tinstall tcheck ttotal status check_url
     ##    <chr> <chr>  <chr>      <dbl>  <dbl>  <dbl> <chr>  <chr>    
     ##  1 spot… r-dev… 2.1.1      12.3    86.2   98.4 OK     https://…
@@ -197,7 +200,8 @@ clean_checks %>%
     ##  8 spot… r-pat… 2.1.1       0       0    162.  OK     https://…
     ##  9 spot… r-rel… 2.1.1      10.8    75.8   86.6 OK     https://…
     ## 10 spot… r-rel… 2.1.1      33     120    153   OK     https://…
-    ## # … with 16 more rows, and 1 more variable: check_details <list>
+    ## # … with 16 more rows, and 7 more variables: check_details <list>,
+    ## #   any <lgl>, ok <int>, note <int>, warn <int>, error <int>, fail <int>
 
 ``` r
 # get check details
@@ -205,11 +209,12 @@ clean_checks %>%
   unnest_wider(check_details)
 ```
 
-    ## # A tibble: 2 x 7
-    ##   pkg    check_results  version check     result output             flavors
-    ##   <chr>  <list>         <chr>   <chr>     <chr>  <chr>              <list> 
-    ## 1 spoti… <df[,7] [13 ×… <NA>    <NA>      <NA>    <NA>              <???>  
-    ## 2 genius <df[,7] [13 ×… 2.2.0   R files … WARN   "Warnings in file… <chr […
+    ## # A tibble: 2 x 13
+    ##   pkg   check_results version check result output flavors any      ok  note
+    ##   <chr> <list>        <chr>   <chr> <chr>  <chr>  <list>  <lgl> <int> <int>
+    ## 1 spot… <df[,7] [13 … <NA>    <NA>  <NA>    <NA>  <???>   FALSE    13     0
+    ## 2 geni… <df[,7] [13 … 2.2.0   R fi… WARN   "Warn… <chr [… TRUE     11     0
+    ## # … with 3 more variables: warn <int>, error <int>, fail <int>
 
 You can pull these checks for the top 500 packages and their
 dependencies in a rather straightforward manner now. You can iterate
@@ -222,15 +227,15 @@ top_checks <- cch_pkgs(head(top_500_cran$package))
 tidy_checks(top_checks)
 ```
 
-    ## # A tibble: 6 x 3
-    ##   pkg       check_results     check_details   
-    ##   <chr>     <list>            <list>          
-    ## 1 abind     <df[,7] [13 × 7]> <NULL>          
-    ## 2 acepack   <df[,7] [13 × 7]> <named list [6]>
-    ## 3 ade4      <df[,7] [13 × 7]> <named list [6]>
-    ## 4 AER       <df[,7] [13 × 7]> <named list [6]>
-    ## 5 AlgDesign <df[,7] [13 × 7]> <named list [6]>
-    ## 6 ape       <df[,7] [13 × 7]> <named list [6]>
+    ## # A tibble: 6 x 9
+    ##   pkg     check_results  check_details  any      ok  note  warn error  fail
+    ##   <chr>   <list>         <list>         <lgl> <int> <int> <int> <int> <int>
+    ## 1 abind   <df[,7] [13 ×… <NULL>         FALSE    13     0     0     0     0
+    ## 2 acepack <df[,7] [13 ×… <named list [… TRUE     11     2     0     0     0
+    ## 3 ade4    <df[,7] [13 ×… <named list [… TRUE      3     7     3     0     0
+    ## 4 AER     <df[,7] [13 ×… <named list [… FALSE    13     0     0     0     0
+    ## 5 AlgDes… <df[,7] [13 ×… <named list [… TRUE      9     2     0     2     0
+    ## 6 ape     <df[,7] [13 ×… <named list [… TRUE     12     0     0     1     0
 
 ### Resources
 

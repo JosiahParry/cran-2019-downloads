@@ -86,14 +86,17 @@ library(cchecks)
 library(tidyverse)
 
 tidy_checks <- function(checks) {
-
+  
   check_res <- map(checks, pluck, "data", "checks")
   check_pkg <- map(checks, pluck, "data", "package")
   check_deets <- map(checks, pluck, "data", "check_details")
+  check_summ <- map(checks, pluck, "data", "summary")
   
   tibble(pkg = unlist(check_pkg),
          check_results = check_res,
-         check_details = check_deets)
+         check_details = check_deets,
+         check_summary = check_summ) %>% 
+    unnest_wider(check_summary)
   
 }
 ```
