@@ -119,3 +119,121 @@ head(pkg_deps)
     ##  [1] "nlme"      "lattice"   "graphics"  "methods"   "stats"    
     ##  [6] "tools"     "utils"     "parallel"  "Rcpp"      "grid"     
     ## [11] "grDevices"
+
+## Package Checks
+
+Each package on CRAN goes through a rigorous checking process. The r cmd
+check is ran on each package for twelve different flavors from a
+combination of Linux and Windows. If you trust the checks that the R
+Core team do, I wouldn’t reinvent the wheel.
+
+The data are not provided directly from CRAN though an individual has
+provided these data via an API. I recommend using the API as a check
+against packages on ingest. I’d also do this process for every time
+you’re syncing. Again, this doesn’t mean that there are no
+vulnerabilities. But if there are functions that will literally break
+the machine, then the checks in general shouldn’t work.
+
+The biggest risk is really in the development and publication of
+applications. The greatest risk you are likely to face are going to be
+internal or accidental. For example using base R and Shiny, a developer
+can make an app unintentionally malicious—i.e. permitting system calls
+or creating a SQL injection. Though this would be rather difficult to
+build into an app, it is possible. The process here would be to
+institute a peer review process for the apps developed. Also, you’re
+going to want to sandbox the applications—which Connect does and will
+improve with launcher in the future.
+
+## Instituting Checks
+
+We can use the [`cchecks`](https://github.com/ropenscilabs/cchecks)
+packge to interact with R-Hub’s CRAN check API. They have done a
+wonderful job aggregating package check data. The data it returns,
+however, is in a rather deeply nested list. Below is a function
+defintion which can tidy up some of the important information produced
+from the API query.
+
+``` r
+#devtools::install_github("ropenscilabs/cchecks")
+
+library(cchecks)
+library(tidyverse)
+
+tidy_checks <- function(checks) {
+
+  check_res <- map(checks, pluck, "data", "checks")
+  check_pkg <- map(checks, pluck, "data", "package")
+  check_deets <- map(checks, pluck, "data", "check_details")
+  
+  tibble(pkg = unlist(check_pkg),
+         check_results = check_res,
+         check_details = check_deets)
+  
+}
+```
+
+``` r
+# query the API for packages
+checks  <- cch_pkgs(c("spotifyr", "genius"))
+
+# tidy up the checks
+clean_checks <- tidy_checks(checks)
+
+# get check results
+clean_checks %>% 
+  unnest(check_results)
+```
+
+    ## # A tibble: 26 x 9
+    ##    pkg   flavor version tinstall tcheck ttotal status check_url
+    ##    <chr> <chr>  <chr>      <dbl>  <dbl>  <dbl> <chr>  <chr>    
+    ##  1 spot… r-dev… 2.1.1      12.3    86.2   98.4 OK     https://…
+    ##  2 spot… r-dev… 2.1.1       9.76   64.8   74.6 OK     https://…
+    ##  3 spot… r-dev… 2.1.1       0       0    116.  OK     https://…
+    ##  4 spot… r-dev… 2.1.1       0       0    112.  OK     https://…
+    ##  5 spot… r-dev… 2.1.1      31     102    133   OK     https://…
+    ##  6 spot… r-dev… 2.1.1      33      96    129   OK     https://…
+    ##  7 spot… r-pat… 2.1.1       9.42   74.4   83.8 OK     https://…
+    ##  8 spot… r-pat… 2.1.1       0       0    162.  OK     https://…
+    ##  9 spot… r-rel… 2.1.1      10.8    75.8   86.6 OK     https://…
+    ## 10 spot… r-rel… 2.1.1      33     120    153   OK     https://…
+    ## # … with 16 more rows, and 1 more variable: check_details <list>
+
+``` r
+# get check details
+clean_checks %>% 
+  unnest_wider(check_details)
+```
+
+    ## # A tibble: 2 x 7
+    ##   pkg    check_results  version check     result output             flavors
+    ##   <chr>  <list>         <chr>   <chr>     <chr>  <chr>              <list> 
+    ## 1 spoti… <df[,7] [13 ×… <NA>    <NA>      <NA>    <NA>              <???>  
+    ## 2 genius <df[,7] [13 ×… 2.2.0   R files … WARN   "Warnings in file… <chr […
+
+You can pull these checks for the top 500 packages and their
+dependencies in a rather straightforward manner now. You can iterate
+through these all. Note that this is an API and you may see some lag
+time. So go make some tea.
+
+``` r
+top_checks <- cch_pkgs(head(top_500_cran$package))
+
+tidy_checks(top_checks)
+```
+
+    ## # A tibble: 6 x 3
+    ##   pkg       check_results     check_details   
+    ##   <chr>     <list>            <list>          
+    ## 1 abind     <df[,7] [13 × 7]> <NULL>          
+    ## 2 acepack   <df[,7] [13 × 7]> <named list [6]>
+    ## 3 ade4      <df[,7] [13 × 7]> <named list [6]>
+    ## 4 AER       <df[,7] [13 × 7]> <named list [6]>
+    ## 5 AlgDesign <df[,7] [13 × 7]> <named list [6]>
+    ## 6 ape       <df[,7] [13 × 7]> <named list [6]>
+
+### Resources
+
+  - <https://environments.rstudio.com/validation.html>
+  - <https://www.r-bloggers.com/overview-of-the-cran-checks-api/amp>
+  - <https://blog.r-hub.io/2019/04/25/r-devel-linux-x86-64-debian-clang/>
